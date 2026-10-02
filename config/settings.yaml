@@ -1,0 +1,50 @@
+# TileIQ settings. Values marked VERIFY are working assumptions for the demo,
+# to be replaced with confirmed figures before any real pricing decision.
+
+portfolio:
+  ours: ["Rocell", "Lanka Tiles"]        # V One group brands
+  competitors: ["Macktiles", "Naveen Ceramic", "Importer - India GVT", "Importer - China", "Importer - Spain/Italy"]
+
+# Target price position vs comparable competitor set (1.00 = parity).
+# Rocell is the premium local brand; Lanka Tiles plays a notch below.
+target_index:
+  Rocell: 1.08
+  Lanka Tiles: 1.02
+
+# How far one pricing cycle may move a list price.
+max_list_change_pct: 8
+
+# Landed-cost model for imported equivalents (per sqm). VERIFY every rate
+# against the current Sri Lanka Customs tariff for HS 6907 and live FX.
+landed_cost:
+  usd_lkr: 300.0                # VERIFY
+  eur_lkr: 330.0                # VERIFY
+  freight_usd_per_sqm: 0.9      # container freight India/China -> Colombo, VERIFY
+  insurance_pct: 0.5
+  customs_duty_pct: 15          # VERIFY
+  cess_pct: 30                  # VERIFY - tiles have carried a protective CESS
+  pal_pct: 10                   # Ports & Airports Levy, VERIFY
+  sscl_pct: 2.5                 # Social Security Contribution Levy, VERIFY
+  vat_pct: 18                   # VERIFY
+  importer_margin_pct: 35       # distributor gross margin, VERIFY by field checks
+  fob_usd_per_sqm:              # typical export FOB, VERIFY with supplier quotes
+    "Importer - India GVT":
+      "600x600": 3.6
+      "600x1200": 4.8
+      "800x1600": 7.5
+      "1200x2400": 11.0
+    "Importer - China":
+      "600x600": 4.2
+      "600x1200": 5.8
+      "800x1600": 8.5
+      "1200x2400": 13.0
+    "Importer - Spain/Italy":
+      "600x600": 16.0
+      "600x1200": 22.0
+      "1200x2400": 45.0
+
+# Discount guardrail tuning. The ceiling is the discount that maximises
+# expected margin per quote = P(win | discount) x (net price - cost).
+discount:
+  cost_ratio_of_list: 0.45      # variable cost as a share of list price. VERIFY - replace with SAP VPRS/standard cost per SKU
+  approval_buffer_pts: 3        # manager approval band above the ceiling

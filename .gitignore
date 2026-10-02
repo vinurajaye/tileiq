@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/raw/
+data/processed/
+# Local thumbnail cache; the deployable copies live in site/img/
+data/images/
+data/input/*
+!data/input/.gitkeep

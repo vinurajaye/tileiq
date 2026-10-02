@@ -1,0 +1,45 @@
+# Map your SAP export's column headers to the names TileIQ uses.
+# Left side = TileIQ name (don't change). Right side = header in your export.
+# Standard SAP technical field names are pre-filled; if your export uses the
+# descriptive headers (e.g. "Billing Document"), put those on the right instead.
+
+billing:            # file: data/input/sap_billing.csv (or .xlsx)
+  VBELN: VBELN      # Billing document
+  POSNR: POSNR      # Item
+  FKDAT: FKDAT      # Billing date
+  VKORG: VKORG      # Sales organisation (brand / company)
+  VTWEG: VTWEG      # Distribution channel
+  VKBUR: VKBUR      # Sales office / branch
+  KUNAG: KUNAG      # Sold-to party
+  MATNR: MATNR      # Material
+  ARKTX: ARKTX      # Item description
+  FKIMG: FKIMG      # Billed quantity
+  VRKME: VRKME      # Sales unit (convert boxes to M2 before loading, or add BOX_TO_M2 below)
+  KZWI1: KZWI1      # Gross value (list x qty) - subtotal 1 in most pricing procedures
+  KZWI3: KZWI3      # Discount value - check which subtotal holds discounts in YOUR pricing procedure
+  NETWR: NETWR      # Net value
+  WAERK: WAERK      # Currency
+  PERNR: PERNR      # Sales employee
+
+quotes:             # file: data/input/sap_quotes.csv - quotation items (VBAK/VBAP, AUART = QT)
+  VBELN: VBELN
+  AUDAT: AUDAT      # Document date
+  VTWEG: VTWEG
+  VKBUR: VKBUR
+  MATNR: MATNR
+  ARKTX: ARKTX
+  KWMENG: KWMENG    # Quantity
+  LIST_LKR_SQM: LIST_LKR_SQM
+  DISC_PCT: DISC_PCT
+  STATUS: STATUS    # Won if a follow-on sales order exists, else Lost
+  ABGRU: ABGRU      # Reason for rejection (text)
+  REQ_SIZE: REQ_SIZE        # optional: spec requested when the item wasn't in range
+  REQ_BODY: REQ_BODY
+  REQ_FINISH: REQ_FINISH
+  REQ_LOOK: REQ_LOOK
+  COMPETITOR_WON: COMPETITOR_WON
+
+channel_names:
+  "10": Retail showroom
+  "20": Dealer
+  "30": Project / contractor
