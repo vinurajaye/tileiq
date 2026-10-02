@@ -1,167 +1,246 @@
-# Deploying TileIQ — step by step
+# Deploying TileIQ — comprehensive guide
 
-The interface is a **static site**: HTML, CSS, JavaScript, JSON and images. No server, no database,
-nothing to pay for. The only machine that runs code is the one that refreshes the data, and that can
-be an office PC.
+TileIQ's interface is a **static site**: HTML, CSS, JavaScript, JSON and images. Nothing to run on a
+server, nothing to pay for. Everything below is free.
 
-Everything below is free. Total cost: **LKR 0 per month.**
+**What gets deployed:** the `site/` folder only — ~68 MB, 3,490 tile thumbnails, ~1.8 MB of data and
+~100 KB of code. A packaged `site.zip` (60 MB) sits in the project root for drag-and-drop uploads.
 
----
-
-## What gets deployed
-
-| Folder | Contents | Size |
-|---|---|---|
-| `site/index.html`, `app.js`, `styles.css` | the interface | ~100 KB |
-| `site/data/*.json` | every number the pages draw | ~1.8 MB |
-| `site/img/*.jpg` | 3,490 tile thumbnails | ~66 MB |
-
-**~68 MB and 3,535 files in total** — comfortably inside every free host's limits (Cloudflare Pages
-allows 20,000 files and 25 MB per file).
-
-What is **not** deployed, and never committed: `data/raw/` (the 1.1 GB page cache),
-`data/processed/` (working files) and `data/images/` (the local thumbnail cache that `site/img/` is
-built from). `.gitignore` already excludes them.
+**Never deployed or committed:** `data/raw/` (1.1 GB page cache), `data/processed/` (working files),
+`data/images/` (local thumbnail cache). `.gitignore` already excludes them.
 
 ---
 
-## Part 1 — Put the project on GitHub (10 minutes)
+## First: fix the error you just hit
 
-### 1.1 Confirm the build is current
-
-```bash
-cd "C:\Users\Vinura Jayewardene\Documents\Tech\AI\Lanka Tiles Sales Analytics"
-python -m tileiq.pipeline
+```
+fatal: unable to access 'https://github.com/<your-account>/tileiq.git/': error 400
 ```
 
-It should finish with a summary ending in `spot_check: matched`. Then check it locally:
+The remote was saved with the literal placeholder `<your-account>` instead of your GitHub username.
+Your commit is fine; only the remote address is wrong. Fix it with your real username:
+
+```bash
+git remote set-url origin https://github.com/YOUR-USERNAME/tileiq.git
+```
+
+Check it took:
+
+```bash
+git remote -v
+```
+
+Or, if you would rather not use GitHub at all, remove it and use Option A below:
+
+```bash
+git remote remove origin
+```
+
+---
+
+## Which option should you pick?
+
+| | Option A — Direct upload | Option B — GitHub + Cloudflare | Option C — Netlify Drop | Option D — Local / LAN |
+|---|---|---|---|---|
+| **Time to live** | ~10 min | ~25 min | ~5 min | 1 min |
+| **Needs GitHub** | No | Yes | No | No |
+| **Private to your team** | Yes, free | Yes, free | No (paid feature) | Yes, office only |
+| **Updates** | Re-upload the folder | `git push`, deploys itself | Re-drag the folder | Re-run the pipeline |
+| **Best for** | Getting it in front of leadership this week | The long-term setup | A quick throwaway demo | Keeping it inside the building |
+
+**Recommendation:** start with **Option A** to get it live and shareable today, then move to
+**Option B** when you want refreshes to publish themselves.
+
+---
+
+## Option A — Cloudflare Pages, direct upload (no GitHub)
+
+### A1. Create the account
+Sign up free at **dash.cloudflare.com** (email + password, no card).
+
+### A2. Create the project
+1. Left sidebar → **Workers & Pages**
+2. **Create** → **Pages** tab → **Upload assets**
+3. Project name: `tileiq` → **Create project**
+
+### A3. Upload
+Drag **`site.zip`** (in the project root, 60 MB) onto the upload area — or click *select from
+computer* and pick the whole `site` folder.
+
+> Upload the **contents** of `site`, not the folder itself. If you drag the folder and the site comes
+> up blank, re-upload using `site.zip`, which has the correct structure built in.
+
+Wait for the files to finish, then **Deploy site**. You get a URL like
+`https://tileiq.pages.dev` within a minute.
+
+### A4. Lock it to your team — do this before sharing the link
+Until you do, anyone with the URL can read it.
+
+1. Cloudflare dashboard → **Zero Trust** (left sidebar; accept the free plan if prompted)
+2. **Access** → **Applications** → **Add an application** → **Self-hosted**
+3. Application name: `TileIQ`. Domain: paste your `tileiq.pages.dev` hostname
+4. **Add policy** → Policy name: `Vallibel One staff`, Action: **Allow**
+5. **Include** → **Emails ending in** → `@vallibelone.com`
+   (or choose **Emails** and list the leadership team one by one)
+6. Save
+
+Visitors now receive a one-time code by email before the site opens. Free for up to 50 users.
+
+### A5. Updating later
+After any rebuild:
+
+```bash
+python -m tileiq.pipeline
+```
+```bash
+python -c "import shutil; shutil.make_archive('site','zip','site')"
+```
+
+Then Cloudflare → your project → **Create deployment** → upload the new `site.zip`. The previous
+version stays available for rollback.
+
+---
+
+## Option B — GitHub + Cloudflare Pages (publishes itself)
+
+### B1. Create the repository
+On github.com: **New repository** → name `tileiq` → **Private** → do **not** add a README → Create.
+
+> Keep it private. The source pages are public, but the analysis is not something to hand competitors.
+
+### B2. Point the remote at it (with your real username)
+
+```bash
+git remote set-url origin https://github.com/YOUR-USERNAME/tileiq.git
+```
+
+If `git remote -v` prints nothing, add it instead:
+
+```bash
+git remote add origin https://github.com/YOUR-USERNAME/tileiq.git
+```
+
+### B3. Push
+
+```bash
+git branch -M main
+```
+```bash
+git push -u origin main
+```
+
+**On authentication:** GitHub rejects account passwords. When the credential window appears, choose
+**Sign in with your browser** — Git Credential Manager ships with Git for Windows and stores it.
+If you are asked for a password in the terminal instead, generate a token at
+github.com → Settings → Developer settings → **Personal access tokens (classic)** → Generate new
+token → scope **repo** → use that token as the password.
+
+The first push uploads ~68 MB and takes a few minutes.
+
+### B4. Connect Cloudflare
+1. dash.cloudflare.com → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
+2. Authorise GitHub, pick `tileiq`
+3. Build settings — the screen most people get wrong:
+   - **Framework preset:** `None`
+   - **Build command:** *leave completely empty*
+   - **Build output directory:** `site`
+4. **Save and Deploy**
+
+### B5. Lock it down
+Same as **A4** above.
+
+### B6. Updating later
+```bash
+python -m tileiq.pipeline
+```
+```bash
+git add -A && git commit -m "refresh" && git push
+```
+Cloudflare redeploys automatically, usually within two minutes.
+
+---
+
+## Option C — Netlify Drop (fastest, but public)
+
+1. Open **app.netlify.com/drop**
+2. Drag the `site` folder onto the page
+3. You get a live URL in seconds
+
+No account needed to start, but **password protection is a paid feature on Netlify**, so treat any
+link as public. Fine for a throwaway demo, not for leadership material.
+
+---
+
+## Option D — No hosting at all
+
+For a laptop demo or a machine on the office network:
 
 ```bash
 python -m http.server 8765 --directory site
 ```
 
-Open `http://localhost:8765` and confirm the Overview loads and the Price audit page shows today's
-build time. Press Ctrl+C to stop.
+Open `http://localhost:8765`, or share `http://<your-ip>:8765` on the office LAN. Nothing leaves the
+building.
 
-> The site must be served over HTTP. Opening `site/index.html` directly from the file system will
-> show an empty page, because browsers block `fetch()` on `file://` URLs.
-
-### 1.2 Commit
-
-```bash
-git add -A
-git commit -m "TileIQ build"
-```
-
-### 1.3 Create a private GitHub repository
-
-On github.com: **New repository** → name it `tileiq` → **Private** → don't add a README → Create.
-
-> Keep it private. The underlying pages are public, but the analysis is not something to hand to
-> Macktiles.
-
-### 1.4 Push
-
-```bash
-git remote add origin https://github.com/<your-account>/tileiq.git
-git branch -M main
-git push -u origin main
-```
-
-The first push uploads about 68 MB and takes a few minutes.
+> The site must be served over HTTP. Opening `site/index.html` by double-clicking shows a blank page,
+> because browsers block `fetch()` on `file://` URLs.
 
 ---
 
-## Part 2 — Publish on Cloudflare Pages (10 minutes)
+## Custom domain (optional, free on Cloudflare)
 
-Free tier: unlimited bandwidth, 500 builds a month, and access control for up to 50 users.
-
-### 2.1 Connect the repo
-
-1. Sign up free at **dash.cloudflare.com**.
-2. **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
-3. Authorise GitHub, select the `tileiq` repository.
-4. Build settings — this is the important screen:
-   - **Framework preset:** `None`
-   - **Build command:** *leave completely empty*
-   - **Build output directory:** `site`
-5. **Save and Deploy.**
-
-After about a minute you get a live URL like `https://tileiq-a1b.pages.dev`.
-
-### 2.2 Lock it to your team (do this before sharing the link)
-
-Until you do this, anyone with the URL can read it.
-
-1. Cloudflare dashboard → **Zero Trust** → **Access** → **Applications** → **Add an application** →
-   **Self-hosted**.
-2. **Application name:** TileIQ. **Domain:** paste your `pages.dev` hostname.
-3. **Add policy** → Name: `Vallibel One staff`, Action: **Allow**.
-4. **Include** → **Emails ending in** → `@vallibelone.com` (or **Emails** and list the leadership
-   team individually).
-5. Save. Visitors now get a one-time email code before the site opens. Free for up to 50 users.
-
-### 2.3 Optional — your own domain
-
-If a company domain is already on Cloudflare: Pages → your project → **Custom domains** → add
-`tileiq.vallibelone.com`. The certificate is issued automatically, free.
+If a company domain is already on Cloudflare: Pages → your project → **Custom domains** → **Set up a
+domain** → `tileiq.vallibelone.com`. The certificate is issued automatically. If the domain is
+elsewhere, Cloudflare shows the exact CNAME record to add at your registrar.
 
 ---
 
-## Part 3 — Keep the data fresh
-
-Three commands, deliberately different in cost:
+## Keeping the data fresh
 
 | Command | Re-fetches | Time | Works on a clean clone? |
 |---|---|---|---|
 | `python -m tileiq.pipeline` | nothing — rebuilds from the local cache | ~2 min | No |
-| `python -m tileiq.pipeline --refresh-prices` | only the sources that publish prices (BuyRocell, Mascons) | ~10 min | No |
-| `python -m tileiq.pipeline --refresh` | every catalogue, the global benchmark and marketing | 2–3 hrs | Yes |
+| `python -m tileiq.pipeline --refresh-prices` | only sources that publish prices | ~10 min | No |
+| `python -m tileiq.pipeline --refresh` | every catalogue, global benchmark and marketing | 2–3 hrs | Yes |
 
-**The important caveat:** the first two rebuild from `data/raw/`, which is *not* in the repository
-because it is 1.1 GB. They only work on the machine that has the cache — normally the office PC that
-first built the project. A clean clone (or a GitHub Actions runner) must use `--refresh`.
+**The catch:** the first two rebuild from `data/raw/`, which is not in the repository because it is
+1.1 GB. They only work on the machine that holds the cache — the PC where the project was built. A
+clean clone or a cloud runner must use `--refresh`.
 
-That leads to two workable patterns. Pick one.
+### Scheduling it on the office PC (works with Option A or B)
 
-### Option A — Refresh on an office PC (recommended)
-
-The machine already has the cache, so nightly refreshes are quick and cheap.
-
-Open a terminal **in the project folder** and run these once:
+Open a terminal **in the project folder** and run once:
 
 ```bash
-schtasks /create /tn "TileIQ nightly prices" /tr "cmd /c cd /d \"%CD%\" && python -m tileiq.pipeline --refresh-prices && git add -A && git commit -m \"nightly price refresh\" && git push" /sc daily /st 02:00 /rl highest
+schtasks /create /tn "TileIQ nightly prices" /tr "cmd /c cd /d \"%CD%\" && python -m tileiq.pipeline --refresh-prices" /sc daily /st 02:00 /rl highest
 ```
 
 ```bash
-schtasks /create /tn "TileIQ weekly full refresh" /tr "cmd /c cd /d \"%CD%\" && python -m tileiq.pipeline --refresh && git add -A && git commit -m \"weekly full refresh\" && git push" /sc weekly /d SUN /st 01:00 /rl highest
+schtasks /create /tn "TileIQ weekly full refresh" /tr "cmd /c cd /d \"%CD%\" && python -m tileiq.pipeline --refresh" /sc weekly /d SUN /st 01:00 /rl highest
 ```
 
-Each push triggers Cloudflare Pages to redeploy automatically — usually live within two minutes.
-The PC must be switched on at those times.
+With **Option B**, append the push so it publishes itself:
 
-To check the schedules later: `schtasks /query /tn "TileIQ nightly prices"`.
-To remove one: `schtasks /delete /tn "TileIQ nightly prices" /f`.
+```bash
+schtasks /create /tn "TileIQ nightly publish" /tr "cmd /c cd /d \"%CD%\" && python -m tileiq.pipeline --refresh-prices && git add -A && git commit -m \"nightly refresh\" && git push" /sc daily /st 02:00 /rl highest
+```
 
-git will need to push without prompting. Either sign in once with GitHub Desktop or the GitHub CLI
-(`gh auth login`), or use a credential-cached HTTPS remote, so the scheduled task isn't blocked
-waiting for a password.
+Check: `schtasks /query /tn "TileIQ nightly prices"` · Remove: `schtasks /delete /tn "TileIQ nightly prices" /f`
 
-### Option B — Refresh in GitHub Actions (no PC required)
+### Or refresh in GitHub Actions (Option B only)
 
-A runner starts clean, so it must do a **full** refresh. Private repos get 2,000 free Actions minutes
-a month; a weekly full refresh uses roughly 150 minutes per run, about **600 a month** — inside the
-quota. Do not schedule a full refresh nightly; that would be ~4,500 minutes and would be billed.
+A runner starts clean, so it must do a **full** refresh. Private repos get 2,000 free minutes a
+month; a weekly full refresh is ~150 minutes per run, about 600 a month — inside the quota. A
+*nightly* full refresh would be ~4,500 minutes and would be billed, so keep it weekly.
 
-Create `.github/workflows/refresh.yml`:
+`.github/workflows/refresh.yml`:
 
 ```yaml
 name: Weekly refresh
 on:
   schedule:
     - cron: "30 19 * * 6"     # Sunday 01:00 Sri Lanka time
-  workflow_dispatch:           # also lets you run it by hand
+  workflow_dispatch:
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -180,33 +259,20 @@ jobs:
           git push
 ```
 
-Then: repo **Settings** → **Actions** → **General** → **Workflow permissions** → select
-**Read and write permissions** → Save. Otherwise the bot cannot push.
-
-Run it once by hand first: **Actions** tab → *Weekly refresh* → **Run workflow**.
-
-### Option C — No hosting at all
-
-For a laptop demo or a machine on the office network:
-
-```bash
-python -m http.server 8765 --directory site
-```
-
-Share `http://<your-ip>:8765` on the LAN. Nothing leaves the building.
+Then repo **Settings** → **Actions** → **General** → **Workflow permissions** → **Read and write
+permissions** → Save. Run it once by hand from the **Actions** tab to confirm.
 
 ---
 
-## Part 4 — Verify after every deployment (60 seconds)
+## Verify after every deployment (60 seconds)
 
-1. Open the site. **Overview** should load in about a second.
-2. Left rail, bottom: the **build time** should be recent.
-3. **Price audit** page → *Live spot check* should read something like `8/8 matched on last run`.
-   Anything else means a source site changed its layout and a scraper needs attention.
-4. **Sources** page → every source should show a sensible product count (Rocell ~800,
-   Macktiles ~565, Lanka Tiles ~321, global ~1,800).
-5. **Marketing** page → the brand table should show follower numbers, not blanks. LinkedIn
-   throttles heavy use; occasional blanks are normal and fill in on the next refresh.
+1. Open the site — the **Overview** should appear in about a second
+2. Bottom of the left rail: the **build time** should be recent
+3. **Price audit** → *Live spot check* should read something like `10/10 matched`.
+   A "price changed" row is normal; "failed" means a source changed its layout
+4. **Sources** → sensible counts: Rocell ~800, Macktiles ~565, Lanka Tiles ~321, global ~1,800
+5. **Marketing** → follower numbers present. Occasional blanks mean LinkedIn or YouTube
+   rate-limited that request; they return on the next refresh
 
 ---
 
@@ -214,13 +280,15 @@ Share `http://<your-ip>:8765` on the LAN. Nothing leaves the building.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Page loads but all numbers are stale | Browser cached the old JSON | Rebuilds change the asset URLs automatically; hard-refresh once with Ctrl+Shift+R |
-| Blank page, console shows `fetch` errors | Opened via `file://` | Serve it over HTTP (Part 1.1) or use the deployed URL |
-| Cloudflare build fails | A build command was entered | It must be empty, with output directory `site` |
-| Push rejected, file too large | A cache folder got committed | Confirm `.gitignore` lists `data/raw/`, `data/processed/`, `data/images/` |
-| Spot check reports "price changed" | The source genuinely changed its price | Normal — the next refresh picks it up |
-| Spot check reports "failed" or "no product found" | A source site changed its HTML | The scraper for that source needs updating |
-| Marketing page missing YouTube numbers | YouTube rate-limited the request | Re-run the refresh; the value returns |
+| `error 400` on push | The remote still contains `<your-account>` | `git remote set-url origin https://github.com/YOUR-USERNAME/tileiq.git` |
+| `Repository not found` | Repo not created, or no access | Create it on github.com first; confirm the name matches exactly |
+| `Authentication failed` | GitHub no longer accepts passwords | Sign in through the browser prompt, or use a personal access token (B3) |
+| `support for password authentication was removed` | Same as above | Same as above |
+| Deployed site is blank | Uploaded the folder instead of its contents | Re-upload `site.zip` |
+| Blank page locally, console shows `fetch` errors | Opened via `file://` | Serve over HTTP (Option D) |
+| Cloudflare build fails | A build command was entered | Clear it; output directory must be `site` |
+| Numbers look stale after a refresh | Browser cache | Rebuilds change the asset URLs automatically; hard-refresh once with Ctrl+Shift+R |
+| Push rejected, file too large | A cache folder got committed | Confirm `.gitignore` lists `data/raw/`, `data/processed/`, `data/images/`, `site.zip` |
 
 ---
 
@@ -231,8 +299,9 @@ Share `http://<your-ip>:8765` on the LAN. Nothing leaves the building.
 | Cloudflare Pages hosting and bandwidth | free |
 | Cloudflare Access, up to 50 users | free |
 | GitHub private repository | free |
-| GitHub Actions weekly refresh | free within the 2,000 min/month quota |
-| Custom domain | only the domain registration, if you want a new one |
+| GitHub Actions weekly refresh | free within 2,000 min/month |
+| Custom domain | only the registration, if you want a new one |
+| **Total** | **LKR 0 per month** |
 
-The only reason to pay anything later is a small always-on VM (about $5/month) if you want refreshes
-to run without depending on an office PC.
+The only reason to pay later is a small always-on VM (~$5/month) if you want refreshes to run
+without depending on an office PC being switched on.
